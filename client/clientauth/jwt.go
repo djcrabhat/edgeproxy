@@ -6,6 +6,8 @@ import (
 	"encoding/pem"
 	log "github.com/sirupsen/logrus"
 	"io/ioutil"
+	"math/rand"
+	"strconv"
 	"time"
 
 	"github.com/golang-jwt/jwt"
@@ -39,23 +41,16 @@ func SetSigningKey(pemPath string) {
 	}
 
 	signKey = priv
-
-	// TODO: load a PEM from disk.  for new, generate a random one
-	//privkey, _ := rsa.GenerateKey(rand.Reader, 4096)
-	//pubkey = &privkey.PublicKey
 }
 
 func CreateClientToken() (string, error) {
-	// TODO: actually generate unique jwt
-	//return "letMeIIIIIIIN!!!", nil
-
 	t := jwt.New(jwt.GetSigningMethod("RS256"))
 	t.Claims = &ClientAuthorizationClaims{
 		&jwt.StandardClaims{
 			ExpiresAt: time.Now().Add(time.Minute * 10).Unix(),
+			Audience:  "edgeproxy",
 		},
-		"testnonce",
+		strconv.Itoa(rand.Int()),
 	}
-
 	return t.SignedString(signKey)
 }

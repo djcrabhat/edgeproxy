@@ -4,7 +4,6 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
-	"fmt"
 	"github.com/golang-jwt/jwt"
 	log "github.com/sirupsen/logrus"
 	"httpProxy/client/clientauth"
@@ -63,11 +62,15 @@ func IsValidToken(token string) bool {
 		return pubkey, nil
 	})
 	if err != nil {
-		log.Debug(err)
+		log.Debugf("error validting authentication client: %v", err)
 		return false
 	}
 	claims := parsedToken.Claims.(*clientauth.ClientAuthorizationClaims)
 	// didn't blow up, meaning it's signed by the right key and not expired
-	fmt.Println(claims.Nonce)
-	return true
+	if claims.StandardClaims.VerifyAudience("edgeproxy", true) {
+		return true
+	} else {
+		log.Debugf("bad audience: %s", claims.StandardClaims.Audience)
+		return false
+	}
 }
