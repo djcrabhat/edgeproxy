@@ -3,6 +3,7 @@ package cli
 import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"httpProxy/client/clientauth"
 	"httpProxy/client/proxy"
 	"httpProxy/client/tcp"
 	"httpProxy/client/websocket"
@@ -34,6 +35,7 @@ var (
 				dialer = tcp.NewTCPDialer()
 				break
 			case config.WebsocketTransport:
+				clientauth.SetSigningKey(clientConfig.PrivateKeyPath)
 				dialer, err = websocket.NewWebSocketDialer(clientConfig.WebSocketTransportConfig.WebSocketTunnelEndpoint)
 				if err != nil {
 					log.Fatal(err)
@@ -86,5 +88,5 @@ func init() {
 	//WebSocket Transport Configuration
 	clientCmd.PersistentFlags().StringVarP(&clientConfig.WebSocketTransportConfig.WebSocketTunnelEndpoint, "wssTunnelEndpoint", "w", clientConfig.WebSocketTransportConfig.WebSocketTunnelEndpoint, "WebSocket Tunnel Endpoint")
 	clientCmd.PersistentFlags().VarP(&clientConfig.TransparentProxyList, "transparent-proxy", "k", "Create a transparent Proxy, expected format `5000:TCP:1.1.1.1:5000`")
-
+	clientCmd.PersistentFlags().StringVarP(&clientConfig.PrivateKeyPath, "private-key", "p", clientConfig.PrivateKeyPath, "Path to a private pem")
 }

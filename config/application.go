@@ -1,6 +1,7 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	proxy "httpProxy/client/proxy"
 	"net/url"
@@ -76,15 +77,20 @@ type ClientConfig struct {
 	TransportType            TransportType
 	WebSocketTransportConfig WebSocketTransportConfig
 	TransparentProxyList     TransparentProxyMappingList
+	PrivateKeyPath           string
 }
 
 type ServerConfig struct {
-	HttpPort int
+	HttpPort      int
+	PublicKeyPath string
 }
 
 func (s ServerConfig) Validate() error {
 	if s.HttpPort <= 0 || s.HttpPort > 65635 {
 		return fmt.Errorf("invalid Server Http port %d", s.HttpPort)
+	}
+	if s.PublicKeyPath == "" {
+		return errors.New("must set a PublicKeyPath")
 	}
 	return nil
 }
@@ -98,6 +104,9 @@ func (c ClientConfig) Validate() (err error) {
 		if err = c.WebSocketTransportConfig.Validate(); err != nil {
 			return err
 		}
+	}
+	if c.PrivateKeyPath == "" {
+		return errors.New("must set a PrivateKeyPath")
 	}
 	return nil
 }

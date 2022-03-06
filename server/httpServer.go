@@ -21,12 +21,12 @@ type WebSocketHandler interface {
 	socketHandler(w http.ResponseWriter, r *http.Request)
 }
 
-func NewHttpServer(ctx context.Context, httpPort int) httpServer {
-	return NewHttpServerWithTLS(ctx, httpPort, "", "")
+func NewHttpServer(ctx context.Context, httpPort int, authKeyPath string) httpServer {
+	return NewHttpServerWithTLS(ctx, httpPort, authKeyPath, "", "")
 }
 
-func NewHttpServerWithTLS(ctx context.Context, httpPort int, srvCertPath string, srvKeyPath string) httpServer {
-	wsHandler := NewWebSocketHandler(ctx)
+func NewHttpServerWithTLS(ctx context.Context, httpPort int, authKeyPath string, srvCertPath string, srvKeyPath string) httpServer {
+	wsHandler := NewWebSocketHandler(ctx, authKeyPath)
 
 	muxRouter := mux.NewRouter()
 	muxRouter.HandleFunc("/", wsHandler.socketHandler)

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/gorilla/websocket"
 	log "github.com/sirupsen/logrus"
+	"httpProxy/server/auth"
 	"httpProxy/transport"
 	"net"
 	"net/http"
@@ -15,7 +16,7 @@ type wsHandler struct {
 	ctx      context.Context
 }
 
-func NewWebSocketHandler(ctx context.Context) WebSocketHandler {
+func NewWebSocketHandler(ctx context.Context, path string) WebSocketHandler {
 	return &wsHandler{
 		ctx:      ctx,
 		upgrader: websocket.Upgrader{},
@@ -31,6 +32,12 @@ func (ws *wsHandler) socketHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	if dstAddr == "" {
 		ws.InvalidRequest(w, fmt.Errorf("invalid dst Addr"))
+		return
+	}
+
+	authToken := r.Header.Get(auth.HeaderAuthorization)
+	if !auth.IsValidToken(authToken) {
+		ws.InvalidRequest(w, fmt.Errorf("invalid authentication"))
 		return
 	}
 

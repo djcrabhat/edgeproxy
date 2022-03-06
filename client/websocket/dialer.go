@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"github.com/gorilla/websocket"
 	log "github.com/sirupsen/logrus"
+	"httpProxy/client/clientauth"
 	"httpProxy/client/proxy"
+	"httpProxy/server/auth"
 	"httpProxy/transport"
 	"net"
 	"net/http"
@@ -45,6 +47,13 @@ func (d *dialer) Dial(network string, addr string) (net.Conn, error) {
 	headers := http.Header{}
 	headers.Add(transport.HeaderNetworkType, transport.TCPNetwork)
 	headers.Add(transport.HeaderDstAddress, addr)
+
+	authToken, tokenError := clientauth.CreateClientToken()
+	if tokenError != nil {
+		log.Errorf("Cannote generate authentication token: %v", tokenError)
+		return nil, tokenError
+	}
+	headers.Add(auth.HeaderAuthorization, fmt.Sprintf("Bearer %s", authToken))
 	wssCon, _, err := websocket.DefaultDialer.Dial(d.Endpoint.String(), headers)
 	if err != nil {
 		log.Errorf("error when dialing Websocket tunnel %s: %v", d.Endpoint.String(), err)

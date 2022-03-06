@@ -4,6 +4,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"httpProxy/server"
+	"httpProxy/server/auth"
 	"os"
 )
 
@@ -25,7 +26,9 @@ var (
 				log.Errorf("invalid Server Parameters %v", err)
 				os.Exit(invalidConfig)
 			}
-			webSocketRelay := server.NewHttpServer(cmd.Context(), serverConfig.HttpPort)
+
+			auth.SetValidationKey(serverConfig.PublicKeyPath)
+			webSocketRelay := server.NewHttpServer(cmd.Context(), serverConfig.HttpPort, serverConfig.PublicKeyPath)
 			webSocketRelay.Start()
 
 			<-cmd.Context().Done()
@@ -37,5 +40,6 @@ var (
 
 func init() {
 	RootCmd.AddCommand(serverCmd)
-	clientCmd.PersistentFlags().IntVar(&serverConfig.HttpPort, "http-port", serverConfig.HttpPort, "Http WebSocket Server Listen Port")
+	serverCmd.PersistentFlags().IntVar(&serverConfig.HttpPort, "http-port", serverConfig.HttpPort, "Http WebSocket Server Listen Port")
+	serverCmd.PersistentFlags().StringVar(&serverConfig.PublicKeyPath, "public-key", serverConfig.PublicKeyPath, "Path to a public pem")
 }
