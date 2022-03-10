@@ -36,7 +36,12 @@ func (ws *wsHandler) socketHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	authToken := r.Header.Get(auth.HeaderAuthorization)
-	if !auth.IsValidToken(authToken) {
+	certEncoded := r.Header.Get(auth.HeaderCertificate)
+	if certEncoded == "" {
+		ws.InvalidRequest(w, fmt.Errorf("must present a %s header", auth.HeaderCertificate))
+		return
+	}
+	if !auth.IsValidToken(authToken, certEncoded) {
 		ws.InvalidRequest(w, fmt.Errorf("invalid authentication"))
 		return
 	}

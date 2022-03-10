@@ -36,6 +36,7 @@ var (
 				break
 			case config.WebsocketTransport:
 				clientauth.SetSigningKey(clientConfig.PrivateKeyPath)
+				clientauth.SetCertificate(clientConfig.CertificatePath)
 				dialer, err = websocket.NewWebSocketDialer(clientConfig.WebSocketTransportConfig.WebSocketTunnelEndpoint)
 				if err != nil {
 					log.Fatal(err)
@@ -89,4 +90,6 @@ func init() {
 	clientCmd.PersistentFlags().StringVarP(&clientConfig.WebSocketTransportConfig.WebSocketTunnelEndpoint, "wssTunnelEndpoint", "w", clientConfig.WebSocketTransportConfig.WebSocketTunnelEndpoint, "WebSocket Tunnel Endpoint")
 	clientCmd.PersistentFlags().VarP(&clientConfig.TransparentProxyList, "transparent-proxy", "k", "Create a transparent Proxy, expected format `5000:TCP:1.1.1.1:5000`")
 	clientCmd.PersistentFlags().StringVarP(&clientConfig.PrivateKeyPath, "private-key", "p", clientConfig.PrivateKeyPath, "Path to a private pem")
+	clientCmd.PersistentFlags().StringVarP(&clientConfig.CertificatePath, "certificate", "c", clientConfig.CertificatePath, "Path to a CA signed pem")
+
 }

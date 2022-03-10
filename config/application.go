@@ -78,6 +78,7 @@ type ClientConfig struct {
 	WebSocketTransportConfig WebSocketTransportConfig
 	TransparentProxyList     TransparentProxyMappingList
 	PrivateKeyPath           string
+	CertificatePath          string
 }
 
 type ServerConfig struct {
@@ -107,6 +108,9 @@ func (c ClientConfig) Validate() (err error) {
 	}
 	if c.PrivateKeyPath == "" {
 		return errors.New("must set a PrivateKeyPath")
+	}
+	if c.CertificatePath == "" {
+		return errors.New("must set a CertificatePath")
 	}
 	return nil
 }

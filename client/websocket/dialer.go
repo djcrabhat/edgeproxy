@@ -53,7 +53,13 @@ func (d *dialer) Dial(network string, addr string) (net.Conn, error) {
 		log.Errorf("Cannote generate authentication token: %v", tokenError)
 		return nil, tokenError
 	}
+	clientCertificate, certificateError := clientauth.GetClientCertificate()
+	if certificateError != nil {
+		log.Errorf("Cannote read certificate: %v", certificateError)
+		return nil, certificateError
+	}
 	headers.Add(auth.HeaderAuthorization, fmt.Sprintf("Bearer %s", authToken))
+	headers.Add(auth.HeaderCertificate, clientCertificate)
 	wssCon, _, err := websocket.DefaultDialer.Dial(d.Endpoint.String(), headers)
 	if err != nil {
 		log.Errorf("error when dialing Websocket tunnel %s: %v", d.Endpoint.String(), err)
