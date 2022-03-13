@@ -1,6 +1,0 @@
-client:
-  socks5: true
-  auth:
-    ca:
-      key: test/test.pem
-      cert: test/ cert.pem
