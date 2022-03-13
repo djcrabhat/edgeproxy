@@ -27,7 +27,12 @@ var (
 				os.Exit(invalidConfig)
 			}
 			var authorizer authorization.Authorizer
-			authorizer = authorization.NoAuthorizer()
+			if serverConfig.Auth.CaConfig.TrustedRoot != "" {
+				authorizer = authorization.NewSpireAuthorizer(cmd.Context(), serverConfig.Auth.CaConfig)
+			} else {
+				authorizer = authorization.NoAuthorizer()
+			}
+
 			if serverConfig.FirewallRules != nil {
 				authorizer = authorization.NewFileAuthorizer(cmd.Context(), serverConfig.FirewallRules)
 			}

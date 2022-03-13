@@ -1,6 +1,7 @@
 package clientauth
 
 import (
+	"crypto/ecdsa"
 	"crypto/rsa"
 	"crypto/x509"
 	"edgeproxy/config"
@@ -24,7 +25,7 @@ type ClientAuthorizationClaims struct {
 
 var (
 	signKey        *rsa.PrivateKey
-	pubkey         *rsa.PublicKey
+	signKeyEc      *ecdsa.PrivateKey
 	certificate    *x509.Certificate
 	certificatePem string
 )
@@ -45,13 +46,19 @@ func SetSigningKey(pemPath string) {
 		log.Fatalln("failed to parse PEM block containing the key")
 	}
 
-	priv, err := x509.ParsePKCS1PrivateKey(block.Bytes)
+	privateKey, err := x509.ParsePKCS1PrivateKey(block.Bytes)
+
 	if err != nil {
-		log.Fatalf("error loading private key: %v", err)
-		return
+		privateKeyEDCSA, ecErr := x509.ParseECPrivateKey(block.Bytes)
+		if ecErr != nil {
+			log.Fatalf("error loading private key: %v", err)
+			return
+		}
+		signKeyEc = privateKeyEDCSA
+	} else {
+		signKey = privateKey
 	}
 
-	signKey = priv
 }
 
 func SetCertificate(pemPath string) {
@@ -65,26 +72,38 @@ func SetCertificate(pemPath string) {
 		log.Fatalln("failed to parse PEM block containing the key")
 	}
 
-	cert, err := x509.ParseCertificate(block.Bytes)
-	if err != nil {
-		log.Fatalf("error loading private key: %v", err)
+	_, certErr := x509.ParseCertificate(block.Bytes)
+	if certErr != nil {
+		log.Fatalf("error loading private key: %v", certErr)
 		return
 	}
 
-	certificate = cert
 	certificatePem = b64.StdEncoding.EncodeToString(buf)
 }
 
 func CreateClientToken() (string, error) {
-	t := jwt.New(jwt.GetSigningMethod("RS256"))
-	t.Claims = &ClientAuthorizationClaims{
-		&jwt.StandardClaims{
-			ExpiresAt: time.Now().Add(time.Minute * 10).Unix(),
-			Audience:  "edgeproxy",
-		},
-		strconv.Itoa(rand.Int()),
+	if signKey != nil {
+		t := jwt.New(jwt.GetSigningMethod("RS256"))
+		t.Claims = &ClientAuthorizationClaims{
+			&jwt.StandardClaims{
+				ExpiresAt: time.Now().Add(time.Minute * 10).Unix(),
+				Audience:  "edgeproxy",
+			},
+			strconv.Itoa(rand.Int()),
+		}
+		return t.SignedString(signKey)
+	} else if signKeyEc != nil {
+		t := jwt.New(jwt.GetSigningMethod("ES256"))
+		t.Claims = &ClientAuthorizationClaims{
+			&jwt.StandardClaims{
+				ExpiresAt: time.Now().Add(time.Minute * 10).Unix(),
+				Audience:  "edgeproxy",
+			},
+			strconv.Itoa(rand.Int()),
+		}
+		return t.SignedString(signKeyEc)
 	}
-	return t.SignedString(signKey)
+	return "", nil
 }
 
 func GetClientCertificate() (string, error) {
@@ -93,18 +112,17 @@ func GetClientCertificate() (string, error) {
 }
 
 type JwtAuthenticator struct {
-
 }
 
-func (receiver JwtAuthenticator) AddAuthenticationHeaders(headers *http.Header)  {
+func (receiver JwtAuthenticator) AddAuthenticationHeaders(headers *http.Header) {
 	// TODO: add header
 	token, _ := CreateClientToken()
-	//cert, _ := GetClientCertificate()
+	cert, _ := GetClientCertificate()
 	headers.Add(HeaderAuthorization, fmt.Sprintf("Bearer %s", token))
+	headers.Add(HeaderCertificate, cert)
 }
 
-
-func (receiver JwtAuthenticator) Load(config config.ClientAuthCaConfig)  {
+func (receiver JwtAuthenticator) Load(config config.ClientAuthCaConfig) {
 	SetCertificate(config.Certificate)
 	SetSigningKey(config.Key)
 }
