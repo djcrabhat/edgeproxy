@@ -377,8 +377,7 @@ func (f *spireAuthorizer) validateClientCertificate(certificate string) (*x509.C
 
 	validatedClientCert := validationChain[0][0]
 	if len(validatedClientCert.URIs) > 0 {
-		// parse SPIFFE uris
-		// TODO: think how to handle multiple IDs
+		// TODO: think how to handle multiple SVIDs
 		uri := validatedClientCert.URIs[0]
 		if uri.Scheme == "spiffe" {
 			trustDomain := uri.Host

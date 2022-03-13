@@ -115,7 +115,6 @@ type JwtAuthenticator struct {
 }
 
 func (receiver JwtAuthenticator) AddAuthenticationHeaders(headers *http.Header) {
-	// TODO: add header
 	token, _ := CreateClientToken()
 	cert, _ := GetClientCertificate()
 	headers.Add(HeaderAuthorization, fmt.Sprintf("Bearer %s", token))
