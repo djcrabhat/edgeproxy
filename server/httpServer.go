@@ -2,9 +2,15 @@ package server
 
 import (
 	"context"
+	"edgeproxy/server/authorization"
+	"edgeproxy/server/handlers"
 	"fmt"
 	"github.com/gorilla/mux"
 	log "github.com/sirupsen/logrus"
+	"sync/atomic"
+
+
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"net/http"
 )
@@ -14,23 +20,25 @@ type httpServer struct {
 	srv         *http.Server
 	srvCertPath string
 	srvKeyPath  string
+	IsReady     *atomic.Value
+	authorizer  authorization.Authorizer
 }
 
-type WebSocketHandler interface {
-	// WebSocket Handler
-	socketHandler(w http.ResponseWriter, r *http.Request)
+func NewHttpServer(ctx context.Context, authorizer authorization.Authorizer, httpPort int) httpServer {
+	return NewHttpServerWithTLS(ctx, authorizer, httpPort, "", "")
 }
 
-func NewHttpServer(ctx context.Context, httpPort int, authKeyPath string) httpServer {
-	return NewHttpServerWithTLS(ctx, httpPort, authKeyPath, "", "")
-}
-
-func NewHttpServerWithTLS(ctx context.Context, httpPort int, authKeyPath string, srvCertPath string, srvKeyPath string) httpServer {
-	wsHandler := NewWebSocketHandler(ctx, authKeyPath)
-
+func NewHttpServerWithTLS(ctx context.Context, authorizer authorization.Authorizer, httpPort int, srvCertPath string, srvKeyPath string) httpServer {
+	wsHandler := handlers.NewWebSocketHandler(ctx)
 	muxRouter := mux.NewRouter()
-	muxRouter.HandleFunc("/", wsHandler.socketHandler)
-	//r.HandleFunc("/stats", StatsHandler)
+	isReady := &atomic.Value{}
+
+	isReady.Store(false)
+	muxRouter.HandleFunc("/", handlers.Authorize(authorizer, wsHandler.SocketHandler))
+	muxRouter.HandleFunc("/version", handlers.VersionHandler)
+	muxRouter.HandleFunc("/healthz", handlers.Healthz)
+	muxRouter.HandleFunc("/readyz", handlers.Readyz(isReady))
+	muxRouter.Handle("/metrics", promhttp.Handler())
 
 	return httpServer{
 		ctx: ctx,
@@ -38,6 +46,8 @@ func NewHttpServerWithTLS(ctx context.Context, httpPort int, authKeyPath string,
 			Addr:    fmt.Sprintf(":%d", httpPort),
 			Handler: muxRouter,
 		},
+		authorizer:  authorizer,
+		IsReady:     isReady,
 		srvCertPath: srvCertPath,
 		srvKeyPath:  srvKeyPath,
 	}
@@ -57,6 +67,8 @@ func (w *httpServer) Start() {
 			log.Fatalf("http Proxy Client Listen failure: %v", err)
 		}
 	}()
+	//TODO this should be only active if we can establish connection to the backend tunnel.
+	w.IsReady.Store(true)
 }
 
 func (w *httpServer) Stop() {

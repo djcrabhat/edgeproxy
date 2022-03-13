@@ -2,37 +2,34 @@ package websocket
 
 import (
 	"context"
+	"edgeproxy/client/clientauth"
+	"edgeproxy/transport"
 	"fmt"
 	"github.com/gorilla/websocket"
 	log "github.com/sirupsen/logrus"
-	"httpProxy/client/clientauth"
-	"httpProxy/client/proxy"
-	"httpProxy/server/auth"
-	"httpProxy/transport"
 	"net"
 	"net/http"
 	"net/url"
 )
 
-type dialer struct {
-	Endpoint *url.URL
+type webSocketConnectionDialer struct {
+	net.Conn
+	Endpoint      *url.URL
+	Authenticator clientauth.Authenticator
 }
 
-func NewWebSocketDialer(endpoint string) (proxy.Dialer, error) {
+func NewWebSocketDialer(endpoint string, authenticator clientauth.Authenticator) (*webSocketConnectionDialer, error) {
 	endpointUrl, err := url.Parse(endpoint)
 	if err != nil {
 		return nil, err
 	}
-	return &dialer{
-		Endpoint: endpointUrl,
+	return &webSocketConnectionDialer{
+		Endpoint:      endpointUrl,
+		Authenticator: authenticator,
 	}, nil
 }
 
-func (d *dialer) DialContext(ctx context.Context, network, addr string) (net.Conn, error) {
-	return d.Dial(network, addr)
-}
-
-func (d *dialer) Dial(network string, addr string) (net.Conn, error) {
+func (d *webSocketConnectionDialer) DialContext(ctx context.Context, network, addr string) (net.Conn, error) {
 	if network == "udp" {
 		return nil, fmt.Errorf("not Support %s network", network)
 	}
@@ -47,23 +44,17 @@ func (d *dialer) Dial(network string, addr string) (net.Conn, error) {
 	headers := http.Header{}
 	headers.Add(transport.HeaderNetworkType, transport.TCPNetwork)
 	headers.Add(transport.HeaderDstAddress, addr)
-
-	authToken, tokenError := clientauth.CreateClientToken()
-	if tokenError != nil {
-		log.Errorf("Cannote generate authentication token: %v", tokenError)
-		return nil, tokenError
+	if d.Authenticator != nil {
+		d.Authenticator.AddAuthenticationHeaders(&headers)
 	}
-	clientCertificate, certificateError := clientauth.GetClientCertificate()
-	if certificateError != nil {
-		log.Errorf("Cannote read certificate: %v", certificateError)
-		return nil, certificateError
-	}
-	headers.Add(auth.HeaderAuthorization, fmt.Sprintf("Bearer %s", authToken))
-	headers.Add(auth.HeaderCertificate, clientCertificate)
-	wssCon, _, err := websocket.DefaultDialer.Dial(d.Endpoint.String(), headers)
+	wssCon, _, err := websocket.DefaultDialer.DialContext(ctx, d.Endpoint.String(), headers)
 	if err != nil {
-		log.Errorf("error when dialing Websocket tunnel %s: %v", d.Endpoint.String(), err)
+		return nil, fmt.Errorf("error when dialing Websocket tunnel %s: %v", d.Endpoint.String(), err)
 	}
 	edgeReadWriter := transport.NewEdgeProxyReadWriter(wssCon)
 	return edgeReadWriter, nil
+}
+
+func (d *webSocketConnectionDialer) Dial(network string, addr string) (net.Conn, error) {
+	return d.DialContext(context.Background(), network, addr)
 }

@@ -3,11 +3,14 @@ package clientauth
 import (
 	"crypto/rsa"
 	"crypto/x509"
+	"edgeproxy/config"
 	b64 "encoding/base64"
 	"encoding/pem"
+	"fmt"
 	log "github.com/sirupsen/logrus"
 	"io/ioutil"
 	"math/rand"
+	"net/http"
 	"strconv"
 	"time"
 
@@ -24,6 +27,11 @@ var (
 	pubkey         *rsa.PublicKey
 	certificate    *x509.Certificate
 	certificatePem string
+)
+
+const (
+	HeaderAuthorization = "Authorization"
+	HeaderCertificate   = "X-Client-Certificate"
 )
 
 func SetSigningKey(pemPath string) {
@@ -82,4 +90,21 @@ func CreateClientToken() (string, error) {
 func GetClientCertificate() (string, error) {
 
 	return certificatePem, nil
+}
+
+type JwtAuthenticator struct {
+
+}
+
+func (receiver JwtAuthenticator) AddAuthenticationHeaders(headers *http.Header)  {
+	// TODO: add header
+	token, _ := CreateClientToken()
+	//cert, _ := GetClientCertificate()
+	headers.Add(HeaderAuthorization, fmt.Sprintf("Bearer %s", token))
+}
+
+
+func (receiver JwtAuthenticator) Load(config config.ClientAuthCaConfig)  {
+	SetCertificate(config.Certificate)
+	SetSigningKey(config.Key)
 }

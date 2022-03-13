@@ -3,11 +3,11 @@ package auth
 import (
 	"crypto/rsa"
 	"crypto/x509"
+	"edgeproxy/client/clientauth"
 	b64 "encoding/base64"
 	"encoding/pem"
 	"github.com/golang-jwt/jwt"
 	log "github.com/sirupsen/logrus"
-	"httpProxy/client/clientauth"
 	"io/ioutil"
 	"regexp"
 	"strings"

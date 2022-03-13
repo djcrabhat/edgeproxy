@@ -1,10 +1,10 @@
 package cli
 
 import (
+	"edgeproxy/server"
+	"edgeproxy/server/authorization"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	"httpProxy/server"
-	"httpProxy/server/auth"
 	"os"
 )
 
@@ -26,9 +26,12 @@ var (
 				log.Errorf("invalid Server Parameters %v", err)
 				os.Exit(invalidConfig)
 			}
-
-			auth.SetValidationKey(serverConfig.PublicKeyPath)
-			webSocketRelay := server.NewHttpServer(cmd.Context(), serverConfig.HttpPort, serverConfig.PublicKeyPath)
+			var authorizer authorization.Authorizer
+			authorizer = authorization.NoAuthorizer()
+			if serverConfig.FirewallRules != nil {
+				authorizer = authorization.NewFileAuthorizer(cmd.Context(), serverConfig.FirewallRules)
+			}
+			webSocketRelay := server.NewHttpServer(cmd.Context(), authorizer, serverConfig.HttpPort)
 			webSocketRelay.Start()
 
 			<-cmd.Context().Done()
@@ -40,6 +43,5 @@ var (
 
 func init() {
 	RootCmd.AddCommand(serverCmd)
-	serverCmd.PersistentFlags().IntVar(&serverConfig.HttpPort, "http-port", serverConfig.HttpPort, "Http WebSocket Server Listen Port")
-	serverCmd.PersistentFlags().StringVar(&serverConfig.PublicKeyPath, "public-key", serverConfig.PublicKeyPath, "Path to a public pem")
+	clientCmd.PersistentFlags().IntVar(&serverConfig.HttpPort, "http-port", serverConfig.HttpPort, "Http WebSocket Server Listen Port")
 }

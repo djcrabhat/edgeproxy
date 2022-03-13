@@ -1,13 +1,13 @@
 package cli
 
 import (
+	"edgeproxy/client/clientauth"
+	"edgeproxy/client/proxy"
+	"edgeproxy/client/tcp"
+	"edgeproxy/client/websocket"
+	"edgeproxy/config"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	"httpProxy/client/clientauth"
-	"httpProxy/client/proxy"
-	"httpProxy/client/tcp"
-	"httpProxy/client/websocket"
-	"httpProxy/config"
 	"os"
 )
 
@@ -25,19 +25,18 @@ var (
 				log.SetLevel(log.DebugLevel)
 				log.Debug("Verbose mode enabled")
 			}
-
+			log.Debug(clientConfig)
 			if err = clientConfig.Validate(); err != nil {
 				log.Errorf("invalid Client Parameters %v", err)
 				os.Exit(invalidConfig)
 			}
+			authenticator, _ := loadAuthenticator()
 			switch clientConfig.TransportType {
 			case config.TcpTransport:
 				dialer = tcp.NewTCPDialer()
 				break
 			case config.WebsocketTransport:
-				clientauth.SetSigningKey(clientConfig.PrivateKeyPath)
-				clientauth.SetCertificate(clientConfig.CertificatePath)
-				dialer, err = websocket.NewWebSocketDialer(clientConfig.WebSocketTransportConfig.WebSocketTunnelEndpoint)
+				dialer, err = websocket.NewWebSocketDialer(clientConfig.WebSocketTransportConfig.WebSocketTunnelEndpoint, authenticator)
 				if err != nil {
 					log.Fatal(err)
 				}
@@ -57,7 +56,11 @@ var (
 			}
 
 			if len(clientConfig.TransparentProxyList) > 0 {
-				proxyService = append(proxyService, proxy.NewTransParentProxy(cmd.Context(), dialer, clientConfig.TransparentProxyList))
+				proxyService = append(proxyService, proxy.NewTransparentProxy(cmd.Context(), dialer, clientConfig.TransparentProxyList))
+			}
+
+			if len(clientConfig.PortForwardList) > 0 {
+				proxyService = append(proxyService, proxy.NewPortForwarding(cmd.Context(), dialer, clientConfig.PortForwardList))
 			}
 
 			for _, pr := range proxyService {
@@ -71,6 +74,17 @@ var (
 		},
 	}
 )
+
+func loadAuthenticator() (clientauth.Authenticator, error) {
+	log.Println(clientConfig.Auth)
+	if (clientConfig.Auth.CaConfig != config.ClientAuthCaConfig{}) {
+		authenticator := clientauth.JwtAuthenticator{}
+		authenticator.Load(clientConfig.Auth.CaConfig)
+		return authenticator, nil
+	} else {
+		return clientauth.NoopAuthenticator{}, nil
+	}
+}
 
 func init() {
 
@@ -88,8 +102,8 @@ func init() {
 
 	//WebSocket Transport Configuration
 	clientCmd.PersistentFlags().StringVarP(&clientConfig.WebSocketTransportConfig.WebSocketTunnelEndpoint, "wssTunnelEndpoint", "w", clientConfig.WebSocketTransportConfig.WebSocketTunnelEndpoint, "WebSocket Tunnel Endpoint")
-	clientCmd.PersistentFlags().VarP(&clientConfig.TransparentProxyList, "transparent-proxy", "k", "Create a transparent Proxy, expected format `5000:TCP:1.1.1.1:5000`")
-	clientCmd.PersistentFlags().StringVarP(&clientConfig.PrivateKeyPath, "private-key", "p", clientConfig.PrivateKeyPath, "Path to a private pem")
-	clientCmd.PersistentFlags().StringVarP(&clientConfig.CertificatePath, "certificate", "c", clientConfig.CertificatePath, "Path to a CA signed pem")
+	clientCmd.PersistentFlags().VarP(&clientConfig.TransparentProxyList, "transparent-proxy", "k", "Create a transparent Proxy, expected format `5000#TCP#1.1.1.1:5000`")
+	clientCmd.PersistentFlags().VarP(&clientConfig.PortForwardList, "port-forward", "f", "Port forward local port to remote TCP service over WebSocket,expected format `5000#TCP#wss://mytunnelendpoint`")
 
+	// TODO: auth config
 }
