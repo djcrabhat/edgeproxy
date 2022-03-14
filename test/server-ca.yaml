@@ -1,4 +1,5 @@
 server:
+  acl: resources/basic_policy.csv
   auth:
     ca:
       root_bundle: test/ca.pem

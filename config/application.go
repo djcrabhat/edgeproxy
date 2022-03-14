@@ -131,7 +131,8 @@ type ClientAuthConfig struct {
 }
 
 type ServerAuthConfig struct {
-	CaConfig ServerAuthCaConfig `mapstructure:"ca"`
+	CaConfig      ServerAuthCaConfig `mapstructure:"ca"`
+	AclPolicyPath string             `mapstructure:"acl"`
 }
 
 type PathsConfig struct {

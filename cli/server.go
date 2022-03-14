@@ -41,7 +41,7 @@ var (
 				//authorizer = authorization.NewFileAuthorizer(cmd.Context(), serverConfig.FirewallRules)
 			}
 
-			acl := authorization.NewPolicyEnforer()
+			acl := authorization.NewPolicyEnforer(serverConfig)
 			webSocketRelay := server.NewHttpServer(cmd.Context(), authorizers, acl, serverConfig.HttpPort)
 			webSocketRelay.Start()
 

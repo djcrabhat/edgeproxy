@@ -26,7 +26,7 @@ func Authorize(authorizer authorization.Authorizer, acl *authorization.PolicyEnf
 				next(res, req)
 				return
 			} else {
-				log.Debugf("denied %s access to %s/%s", subj, netType, dstAddr)
+				log.Infof("denied %s access to %s/%s", subj, netType, dstAddr)
 				res.WriteHeader(http.StatusForbidden)
 				return
 			}
