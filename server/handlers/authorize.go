@@ -3,6 +3,7 @@ package handlers
 import (
 	"edgeproxy/server/authorization"
 	"edgeproxy/transport"
+	log "github.com/sirupsen/logrus"
 	"net/http"
 )
 
@@ -16,17 +17,22 @@ func Authorize(authorizer authorization.Authorizer, acl *authorization.PolicyEnf
 			return
 		}
 
-		// TODO enforce subject is allowed to do this
 		netType := req.Header.Get(transport.HeaderNetworkType)
 		dstAddr := req.Header.Get(transport.HeaderDstAddress)
-		subj := subject.GetSubject()
-		if policyRes, _ := acl.Enforcer.Enforce(subj, dstAddr, netType); policyRes {
-			next(res, req)
+		if subject != nil {
+			// run this subject and the requested network action through casbin
+			subj := subject.GetSubject()
+			if policyRes, _ := acl.Enforcer.Enforce(subj, dstAddr, netType); policyRes {
+				next(res, req)
+				return
+			} else {
+				log.Debugf("denied %s access to %s/%s", subj, netType, dstAddr)
+				res.WriteHeader(http.StatusForbidden)
+				return
+			}
 		} else {
-			// deny the request, show an error
-			res.WriteHeader(http.StatusForbidden)
-			return
+			// this auth method is global, so it doesn't have a subject to evaluate.  let it through
+			next(res, req)
 		}
-
 	}
 }
