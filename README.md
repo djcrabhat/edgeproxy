@@ -159,3 +159,9 @@ p, spiffe://example.com/users/good-user-123, *:80, tcp, deny
 p, spiffe://example.com/users/good-user-456, *:443, tcp, allow
 p, spiffe://example.com/users/bad-user-*, *:*, tcp, deny
 ```
+
+
+# TODO:
+
+* Unify firewall and casbin code
+* Change casbin model to seperate IP and port, to allow for ip masking/CIDRs
