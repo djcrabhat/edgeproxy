@@ -26,17 +26,23 @@ var (
 				log.Errorf("invalid Server Parameters %v", err)
 				os.Exit(invalidConfig)
 			}
-			var authorizer authorization.Authorizer
+			var authorizers []authorization.Authorizer = []authorization.Authorizer{}
+
 			if serverConfig.Auth.CaConfig.TrustedRoot != "" {
-				authorizer = authorization.NewSpireAuthorizer(cmd.Context(), serverConfig.Auth.CaConfig)
+				authorizers = append(authorizers, authorization.NewSpireAuthorizer(cmd.Context(), serverConfig.Auth.CaConfig))
+				//authorizer = authorization.NewSpireAuthorizer(cmd.Context(), serverConfig.Auth.CaConfig)
 			} else {
-				authorizer = authorization.NoAuthorizer()
+				authorizers = append(authorizers, authorization.NoAuthorizer())
+				//authorizer = authorization.NoAuthorizer()
 			}
 
 			if serverConfig.FirewallRules != nil {
-				authorizer = authorization.NewFileAuthorizer(cmd.Context(), serverConfig.FirewallRules)
+				authorizers = append(authorizers, authorization.NewFileAuthorizer(cmd.Context(), serverConfig.FirewallRules))
+				//authorizer = authorization.NewFileAuthorizer(cmd.Context(), serverConfig.FirewallRules)
 			}
-			webSocketRelay := server.NewHttpServer(cmd.Context(), authorizer, serverConfig.HttpPort)
+
+			acl := authorization.NewPolicyEnforer()
+			webSocketRelay := server.NewHttpServer(cmd.Context(), authorizers, acl, serverConfig.HttpPort)
 			webSocketRelay.Start()
 
 			<-cmd.Context().Done()

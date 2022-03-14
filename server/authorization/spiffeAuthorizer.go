@@ -96,34 +96,42 @@ func IsValidToken(token string, pub interface{}) bool {
 	}
 }
 
-func (f *spireAuthorizer) Authorize(w http.ResponseWriter, r *http.Request) bool {
+func (f *spireAuthorizer) Authorize(w http.ResponseWriter, r *http.Request) (bool, Subject) {
 	//var port int
 	//var err error
 	token := r.Header.Get(clientauth.HeaderAuthorization)
 	cert := r.Header.Get(clientauth.HeaderCertificate)
 	//dstAddr := r.Header.Get(transport.HeaderDstAddress)
 	if token == "" {
-		return false
+		return false, nil
 	}
 
 	if cert == "" {
-		return false
+		return false, nil
 	}
 
 	validatedCert, certErr := f.validateClientCertificate(cert)
 	if certErr != nil {
 		log.Debugf("error validating cert: %v", certErr)
-		return false
+		return false, nil
 	}
 
 	// make sure jwt is signed by same key as cert
 	validToken := IsValidToken(token, validatedCert.PublicKey)
 	if !validToken {
 		log.Debug("invalid token")
-		return false
+		return false, nil
 	}
 
-	return true
+	subj := NewSpiffeSubject(validatedCert)
+	return true, subj
+}
+
+func NewSpiffeSubject(cert *x509.Certificate) Subject {
+	subj := SpiffeSubject{
+		cert: cert,
+	}
+	return subj
 }
 
 // shamelessly stolen from https://github.com/cloudflare/cfssl/blob/master/revoke/revoke.go
