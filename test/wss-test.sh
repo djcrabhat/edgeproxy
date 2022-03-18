@@ -1,0 +1,1 @@
+echo "test123" | websocat --socks5 127.0.0.1:9022  ws://ws.vi-server.org/mirror
