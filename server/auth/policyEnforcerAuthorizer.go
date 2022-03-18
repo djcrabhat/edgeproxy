@@ -144,6 +144,10 @@ func (p *policyEnforcer) watchForPolicyChanges() error {
 }
 func (p *policyEnforcer) AuthorizeForward(forwardAction ForwardAction) bool {
 	splitAddress := strings.Split(forwardAction.DestinationAddr, ":")
+	if len(splitAddress) != 2 {
+		log.Warningf("improper DestinationAddr format, should be ip:port")
+		return false
+	}
 	host := splitAddress[0]
 
 	var authorized bool

@@ -6,6 +6,9 @@ GOARCH?=amd64
 COMMIT?=$(shell git rev-parse --short HEAD)
 BUILD_TIME?=$(shell date -u '+%Y-%m-%d_%H:%M:%S')
 SERVER_PORT?=9180
+
+.PHONY: test
+
 clean:
 	rm -f ${APP}
 #CGO_ENABLED=0
